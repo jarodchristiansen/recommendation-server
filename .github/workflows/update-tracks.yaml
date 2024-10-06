@@ -1,9 +1,12 @@
-name: Update Spotify Tracks To Include Features
+name: Update Spotify Tracks
 
 on:
+  # Schedule the job to run every 2 hours
   schedule:
-    # Run the job every 2 hours
-    - cron: "0 */2 * * *" # Adjust the schedule here
+    - cron: "0 */2 * * *"
+
+  # Add workflow_dispatch to manually trigger the workflow
+  workflow_dispatch:
 
 jobs:
   update-tracks:
@@ -21,8 +24,8 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pymongo spotipy python-dotenv # Your dependencies
+          pip install pymongo spotipy python-dotenv  # Your dependencies
 
       - name: Run Track Update Script
         run: |
-          python app/jobs/maintain_tracks.py
+          python jobs/check_and_update_songs.py
