@@ -8,5 +8,6 @@ app = FastAPI()
 app.include_router(recommendations.router)
 
 @app.get("/")
+@app.head('/')
 async def root():
     return {"message": "Hello World"}
