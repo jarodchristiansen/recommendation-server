@@ -82,7 +82,7 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
         except Exception as e:
             raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
 
-    if not target_song['danceability']:
+    if not target_song.get('danceability'):
         try:
             target_song = fetch_track_from_spotify(track_id)
             print(target_song, 'TARGET SONG IN RECOMMENDATION')
