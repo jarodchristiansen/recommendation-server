@@ -62,15 +62,15 @@ spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 # collection = get_mongo_collection()
 
 # Spotify's API rate limits
-MAX_REQUESTS = 1000  # Set a limit of 1000 requests per run
+MAX_REQUESTS = 1500  # Set a limit of 1000 requests per run
 REQUEST_COUNT = 0  # Counter for how many requests have been made
 
 def update_missing_data():
     global REQUEST_COUNT
     
     # Find records missing audio_features or images, limit to 1000 at a time
-    missing_features = collection.find({"danceability": {"$exists": False}}).limit(1000)
-    missing_images = collection.find({"image_url": {"$exists": False}}).limit(1000)
+    missing_features = collection.find({"danceability": {"$exists": False}}).limit(MAX_REQUESTS)
+    missing_images = collection.find({"image_url": {"$exists": False}}).limit(MAX_REQUESTS)
 
     # Process missing audio features
     for track in missing_features:
