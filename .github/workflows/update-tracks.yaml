@@ -1,0 +1,28 @@
+name: Update Spotify Tracks
+
+on:
+  schedule:
+    # Run the job every 2 hours
+    - cron: "0 */2 * * *" # Adjust the schedule here
+
+jobs:
+  update-tracks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pymongo spotipy python-dotenv # Your dependencies
+
+      - name: Run Track Update Script
+        run: |
+          python app/jobs/maintain_tracks.py
