@@ -1,4 +1,4 @@
-name: Update Spotify Tracks
+name: Update Spotify Tracks To Include Features
 
 on:
   schedule:
