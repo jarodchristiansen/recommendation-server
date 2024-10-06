@@ -28,4 +28,4 @@ jobs:
 
       - name: Run Track Update Script
         run: |
-          python jobs/check_and_update_songs.py
+          python app/jobs/maintain_tracks.py
