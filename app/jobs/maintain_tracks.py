@@ -55,8 +55,8 @@ collection = db['tracks_with_features']
 
 # Set up Spotify client
 spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
-    client_id="408db0ea3ba948e6a5b9f1d4deb6a387",
-    client_secret="35ff260240864e809774e3ad998ad1fd"
+    client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+    client_secret=os.getenv("SPOTIFY_CLIENT_SECRET")
 ))
 
 # collection = get_mongo_collection()
