@@ -30,6 +30,9 @@ def update_missing_data():
     missing_features = collection.find({"danceability": {"$exists": False}}).limit(MAX_REQUESTS)
     missing_images = collection.find({"image_url": {"$exists": False}}).limit(MAX_REQUESTS)
 
+    if REQUEST_COUNT % 100 == 0:
+        print(f"Processed {REQUEST_COUNT} tracks so far.")
+
     # Process missing audio features
     for track in missing_features:
         if REQUEST_COUNT >= MAX_REQUESTS:
