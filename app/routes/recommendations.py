@@ -107,6 +107,8 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
         "danceability": 1, "energy": 1, "valence": 1, "loudness": 1, "key": 1, "speechiness": 1
     }))
 
+    print(len(all_tracks), 'ALL TRACKS WITH FEATURES')
+
     if len(all_tracks) == 0:
         raise HTTPException(status_code=404, detail="No tracks with sufficient features found in the database")
 
