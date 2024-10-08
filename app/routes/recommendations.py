@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from app.utils.db import get_mongo_collection
 from app.services.spotify_service import fetch_track_from_spotify
-from app.services.recommendation_service import calculate_cosine_similarity, apply_pca_to_features, precompute_similarity_matrix, calculate_weighted_cosine_similarity_from_matrix, calculate_weighted_cosine_similarity
+from app.services.recommendation_service import calculate_cosine_similarity, calculate_cosine_similarity_with_explanation, calculate_weighted_cosine_similarity
 import os
 
 router = APIRouter()
@@ -18,52 +18,35 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     # Fetch the target song from MongoDB
     target_song = collection.find_one({"track_id": track_id})
     
-    # If the track is not in the DB, fetch from Spotify and insert it
+    # Fetch from Spotify if not found
     if not target_song:
         try:
             target_song = fetch_track_from_spotify(track_id)
-            collection.insert_one(target_song)  # Insert track into MongoDB
+            collection.insert_one(target_song)
         except Exception as e:
             raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
 
-    if not target_song.get('danceability'):
-        try:
-            target_song = fetch_track_from_spotify(track_id)
-            print(target_song, 'TARGET SONG IN RECOMMENDATION')
-            collection.update_one({"track_id": track_id}, {"$set": target_song})
-        except Exception as e:
-            raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
-
-    # Check if the target song has the necessary features
-    if not all(key in target_song and target_song[key] is not None for key in ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness']):
+    # Ensure necessary features exist
+    required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness']
+    if not all(key in target_song and target_song[key] is not None for key in required_features):
         raise HTTPException(status_code=400, detail="Target song is missing necessary audio features")
 
-    # Get all tracks from MongoDB with necessary features (skip tracks missing features)
-    all_tracks = list(collection.find({
-        "danceability": {"$exists": True, "$ne": None},
-        "energy": {"$exists": True, "$ne": None},
-        "valence": {"$exists": True, "$ne": None},
-        "loudness": {"$exists": True, "$ne": None},
-        "key": {"$exists": True, "$ne": None},
-        "speechiness": {"$exists": True, "$ne": None}
-    }, {
-        "_id": 0, "track_id": 1, "track_name": 1, "artist_name": 1, "popularity": 1,
-        "danceability": 1, "energy": 1, "valence": 1, "loudness": 1, "key": 1, "speechiness": 1
+    # Get all tracks with necessary features
+    all_tracks = list(collection.find({key: {"$exists": True, "$ne": None} for key in required_features}, {
+        "_id": 0, "track_id": 1, "track_name": 1, "artist_name": 1, "popularity": 1, **{key: 1 for key in required_features}
     }))
-
-    print(len(all_tracks), 'ALL TRACKS WITH FEATURES')
-
-    if len(all_tracks) == 0:
-        raise HTTPException(status_code=404, detail="No tracks with sufficient features found in the database")
 
     # Define feature columns for similarity calculation
     feature_columns = ['popularity', 'danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness']
     
-    # Calculate recommendations using cosine similarity
-    recommended_tracks = calculate_cosine_similarity(target_song, all_tracks, feature_columns, top_n)
+    # Calculate recommendations with explanations
+    recommended_tracks = calculate_cosine_similarity_with_explanation(
+        target_song, all_tracks, feature_columns, top_n)
 
-    return {"recommendations": recommended_tracks}
-
+    return {
+        "recommendations": recommended_tracks,
+        "target_features": {key: target_song[key] for key in feature_columns},
+    }
 
 @router.get("/recommendations/weighted-cosine/{track_id}")
 async def recommend_songs_with_weights(
