@@ -2,13 +2,13 @@ name: Update Spotify Tracks
 
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    - cron: "0 */3 * * *"
   workflow_dispatch:
 
 jobs:
   update-tracks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Set the job timeout to 7 minutes
+    timeout-minutes: 10 # Set the job timeout to 7 minutes
 
     steps:
       - name: Checkout Repository
