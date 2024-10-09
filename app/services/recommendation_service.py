@@ -19,6 +19,41 @@ def calculate_cosine_similarity(target_song, all_tracks, feature_columns, top_n=
 
     return recommended_tracks
 
+def calculate_cosine_similarity_with_explanation(target_song, all_tracks, feature_columns, top_n=10):
+    # Convert track features into NumPy arrays
+    track_features = np.array([[track[col] for col in feature_columns] for track in all_tracks])
+    target_features = np.array([[target_song[col] for col in feature_columns]])
+
+    # Calculate cosine similarity between target and all tracks
+    similarities = cosine_similarity(target_features, track_features)[0]
+
+    # Get indices of the most similar tracks
+    similar_indices = np.argsort(similarities)[::-1][1:top_n+1]
+
+    # Prepare the recommended tracks with explanations
+    recommended_tracks = []
+    for idx in similar_indices:
+        track = all_tracks[idx]
+        similarity_score = similarities[idx]
+
+        # Calculate the difference between target and recommended track for each feature
+        feature_difference = {
+            col: target_song[col] - track[col] for col in feature_columns
+        }
+
+        # Embed the similarity score and feature differences into each track object
+        track_with_explanation = {
+            **track,
+            "similarity_score": similarity_score,
+            "feature_difference": feature_difference
+        }
+
+        recommended_tracks.append(track_with_explanation)
+
+    return recommended_tracks
+
+
+
 
 def calculate_weighted_cosine_similarity(target_song, all_tracks, feature_columns, top_n=10, weights=None):
     if weights is None:
