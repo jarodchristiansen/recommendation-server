@@ -1,10 +1,5 @@
 import requests
-import pymongo
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-import os
 
-from services.spotify_service import get_spotify_client
 from utils.db import get_mongo_collection
 import re
 import bleach
