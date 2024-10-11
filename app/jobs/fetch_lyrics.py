@@ -25,6 +25,7 @@ def fetch_lyrics_ovh(artist_name, song_title):
         artist_name = track['artist_name']
         song_title = track['track_name']
 
+        print(f"Fetching lyrics for track {song_title} by {artist_name}")
 
         if exceptions >= 10:
             print("Too many exceptions, stopping for now.")
