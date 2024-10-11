@@ -14,8 +14,12 @@ def fetch_lyrics_ovh(artist_name, song_title):
     db = client.Tracks
     collection = db['tracks_with_features']
 
+    print(collection)
+
     # Find records missing images, limit to MAX_REQUESTS at a time
     missing_lyrics = collection.find({"lryics": {"$exists": False}}).limit(2000)
+
+    print(len(missing_lyrics), 'NUMBER OF MISSING LYRICS')
 
     exceptions = 0
 
