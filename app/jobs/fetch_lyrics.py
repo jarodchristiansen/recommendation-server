@@ -3,7 +3,7 @@ import requests
 import os
 from pymongo import MongoClient
 import re
-import bleach
+# import bleach
 
 
 def fetch_lyrics_ovh(artist_name, song_title):
@@ -65,13 +65,13 @@ def clean_lyrics(lyrics_text):
     lyrics_text = re.sub(r'(\<br\>)+', '<br><br>', lyrics_text)
     return lyrics_text.strip()
 
-def sanitize_lyrics(lyrics_text):
-    # Sanitize to allow only <br> tags
-    allowed_tags = ['br']
-    return bleach.clean(lyrics_text, tags=allowed_tags)
+# def sanitize_lyrics(lyrics_text):
+#     # Sanitize to allow only <br> tags
+#     allowed_tags = ['br']
+#     return bleach.clean(lyrics_text, tags=allowed_tags)
 
 def process_lyrics(lyrics_text):
     formatted = format_lyrics(lyrics_text)
     cleaned = clean_lyrics(formatted)
-    sanitized = sanitize_lyrics(cleaned)
-    return sanitized
+    # sanitized = sanitize_lyrics(cleaned)
+    return cleaned
