@@ -24,7 +24,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pymongo spotipy python-dotenv
 
-      - name: Run Track Update Script
+      - name: Run Track Album Art Job
         env:
           SPOTIPY_CLIENT_ID: ${{ secrets.SPOTIPY_CLIENT_ID }}
           SPOTIPY_CLIENT_SECRET: ${{ secrets.SPOTIPY_CLIENT_SECRET }}
