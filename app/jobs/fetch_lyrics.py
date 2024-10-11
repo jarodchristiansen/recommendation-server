@@ -1,13 +1,18 @@
 import requests
 
-from utils.db import get_mongo_collection
+import os
+from pymongo import MongoClient
 import re
 import bleach
 
 
 def fetch_lyrics_ovh(artist_name, song_title):
     # Set up MongoDB connection
-    collection = get_mongo_collection()
+    # collection = get_mongo_collection()
+    MONGO_URL = os.getenv("MONGO_URL")
+    client = MongoClient(MONGO_URL)
+    db = client.Tracks
+    collection = db['tracks_with_features']
 
     # Find records missing images, limit to MAX_REQUESTS at a time
     missing_lyrics = collection.find({"lryics": {"$exists": False}}).limit(2000)
