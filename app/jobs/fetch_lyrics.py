@@ -6,6 +6,8 @@ import os
 
 from services.spotify_service import get_spotify_client
 from utils.db import get_mongo_collection
+import re
+import bleach
 
 
 def fetch_lyrics_ovh(artist_name, song_title):
@@ -15,11 +17,18 @@ def fetch_lyrics_ovh(artist_name, song_title):
     # Find records missing images, limit to MAX_REQUESTS at a time
     missing_lyrics = collection.find({"lryics": {"$exists": False}}).limit(2000)
 
+    exceptions = 0
+
     # Make a for loop to fetch lyrics for each track missing them from db query
     for track in missing_lyrics:
         track_id = track['track_id']
         artist_name = track['artist_name']
         song_title = track['track_name']
+
+
+        if exceptions >= 10:
+            print("Too many exceptions, stopping for now.")
+            break
 
         try:
             lyrics = fetch_lyrics(artist_name, song_title)
@@ -28,6 +37,9 @@ def fetch_lyrics_ovh(artist_name, song_title):
                 print(f"Updated lyrics for track {track_id}")
         except Exception as e:
             print(f"Error fetching lyrics for track {track_id}: {str(e)}")
+            exceptions += 1
+
+
 
 
 def fetch_lyrics(artist_name, song_title):
@@ -42,6 +54,11 @@ def fetch_lyrics(artist_name, song_title):
         return processed_lyrics
     else:
         return "No lyrics found or too many requests."
+
+
+def format_lyrics(lyrics_text):
+    # Replace line breaks with <br> for HTML formatting
+    return lyrics_text.replace("\r\n", "<br>").replace("\n", "<br>")
 
 def clean_lyrics(lyrics_text):
     # Remove excess line breaks but keep paragraph breaks
