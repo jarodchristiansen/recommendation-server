@@ -1,4 +1,3 @@
-import time
 import pymongo
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
