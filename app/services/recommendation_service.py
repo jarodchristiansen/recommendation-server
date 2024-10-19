@@ -55,27 +55,27 @@ def calculate_cosine_similarity_with_explanation(target_song, all_tracks, featur
 
 
 
-# def calculate_weighted_cosine_similarity(target_song, all_tracks, feature_columns, top_n=10, weights=None):
-#     if weights is None:
-#         weights = {feature: 1.0 for feature in feature_columns}  # Default all weights to 1
+def calculate_weighted_cosine_similarity(target_song, all_tracks, feature_columns, top_n=10, weights=None):
+    if weights is None:
+        weights = {feature: 1.0 for feature in feature_columns}  # Default all weights to 1
 
-#     # Extract feature values for the target song
-#     target_features = np.array([target_song[feature] * weights[feature] for feature in feature_columns])
+    # Extract feature values for the target song
+    target_features = np.array([target_song[feature] * weights[feature] for feature in feature_columns])
 
-#     # List to store similarity results
-#     similarities = []
+    # List to store similarity results
+    similarities = []
 
-#     # Compare the target song with all tracks
-#     for track in all_tracks:
-#         track_features = np.array([track[feature] * weights[feature] for feature in feature_columns])
-#         similarity_score = cosine_similarity([target_features], [track_features])[0][0]
-#         similarities.append((track, similarity_score))
+    # Compare the target song with all tracks
+    for track in all_tracks:
+        track_features = np.array([track[feature] * weights[feature] for feature in feature_columns])
+        similarity_score = cosine_similarity([target_features], [track_features])[0][0]
+        similarities.append((track, similarity_score))
 
-#     # Sort by similarity score and return the top N recommendations
-#     similarities.sort(key=lambda x: x[1], reverse=True)
-#     recommended_tracks = [track for track, _ in similarities[:top_n]]
+    # Sort by similarity score and return the top N recommendations
+    similarities.sort(key=lambda x: x[1], reverse=True)
+    recommended_tracks = [track for track, _ in similarities[:top_n]]
 
-#     return recommended_tracks
+    return recommended_tracks
 
 
 

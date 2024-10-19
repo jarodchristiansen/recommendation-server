@@ -26,9 +26,9 @@ def fetch_track_from_spotify(track_id: str):
     # Extract the first item from the audio features list
     audio_features = audio_features[0]
 
-    # Print for debugging
-    print(audio_features, track)
+    album_art_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
 
+    print(album_art_url, 'ALBUM ART URL')
     # Extract relevant features
     track_data = {
         "track_id": track_id,
@@ -48,7 +48,8 @@ def fetch_track_from_spotify(track_id: str):
         "tempo": audio_features["tempo"],
         "duration_ms": audio_features["duration_ms"],
         "time_signature": audio_features["time_signature"],
-        "track_href": audio_features["track_href"]
+        "track_href": audio_features["track_href"],
+        "image_url": album_art_url  # Add the album art URL to track_data
     }
     
     # Print for debugging
