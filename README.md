@@ -1,6 +1,7 @@
 # 🎧 Recommendation Engine Exploration using Spotify Tracks
 
-Welcome to the **Recommendation Engine** project, an intelligent system designed to suggest tracks to users based on a combination of track features, user preferences, and explainable insights. This project was built with the goal of exploring various machine-learning techniques behind recommendation systems and tackling engineering challenges like data processing, scalability, and API limitations.
+
+Welcome to the **Recommendation Engine** project, an intelligent system designed to suggest tracks to users based on a combination of track features, user preferences, and explainable insights. This project was built with the goal of exploring various machine learning techniques behind recommendation systems and tackling engineering challenges like data processing, scalability, and API limitations.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/render-examples/fastapi)
 
@@ -98,7 +99,10 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 - **Spotify API Integration**: Fetches track metadata and audio features (e.g., tempo, key, loudness) using the Spotify API.
 - **MongoDB**: Stores track data, ensuring quick access to recommendations and reducing dependency on real-time API calls.
 - **Redis**: Caches responses to reduce API calls and improve response times.
-- **GitHub Actions**: Automates data fetching for missing information, processing 1,000 tracks simultaneously to stay within rate limits.
+
+
+- **GitHub Actions**: Automates data fetching for missing information, processing 1,000 tracks at a time to stay within rate limits.
+
 
 ### 3. Background Jobs & Scalability
 
@@ -120,13 +124,17 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 
 ## 📈 Future Improvements
 
+
 - **NLP Integration**: Add sentiment analysis of lyrics to enhance the recommendations further, using libraries like **NLTK** or **spaCy**.
+
 - **User Feedback Loop**: Allow users to rate recommendations and use this feedback to refine the recommendation algorithm.
 - **Feature Expansion**: Include more user input options, such as allowing users to specify preferences like "I like the catchiness of this song" to shape recommendations further.
 
 ## 🌐 Deployed Service
 
 - **API Base URL**: [recommendation-server-o85r.onrender.com](recommendation-server-o85r.onrender.com)
+
+
 - **Live Demo**: [View a live demo of the Recommendation Engine](https://spotrec.vercel.app)
 
 ## 📝 License
