@@ -21,7 +21,7 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     print(target_song)
     
     # Fetch from Spotify if not found
-    if not target_song and "image_url" not in target_song:
+    if not target_song:
         try:
             target_song = fetch_track_from_spotify(track_id)
             collection.insert_one(target_song)
@@ -29,7 +29,7 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
             raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
 
     # Ensure necessary features exist
-    required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'tempo', 'liveness', 'instrumentalness', 'acousticness', 'time_signature', 'image_url']
+    required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'image_url']
     if not all(key in target_song and target_song[key] is not None for key in required_features):
         raise HTTPException(status_code=400, detail="Target song is missing necessary audio features")
 
@@ -39,7 +39,7 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     }))
 
     # Define feature columns for similarity calculation
-    feature_columns = ['popularity', 'danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'tempo', 'liveness', 'instrumentalness', 'acousticness', 'time_signature']
+    feature_columns = ['popularity', 'danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness']
     
     # Calculate recommendations with explanations
     recommended_tracks = calculate_cosine_similarity_with_explanation(
