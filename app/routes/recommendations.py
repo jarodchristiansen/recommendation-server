@@ -21,7 +21,7 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     print(target_song)
     
     # Fetch from Spotify if not found
-    if not target_song:
+    if "image_url" not in target_song:
         try:
             target_song = fetch_track_from_spotify(track_id)
             collection.insert_one(target_song)
