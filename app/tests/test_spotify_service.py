@@ -9,7 +9,9 @@ def test_fetch_track_from_spotify_success():
         "name": "Test Song",
         "artists": [{"name": "Test Artist"}],
         "popularity": 85,
+        "album": {"images": [{"url": "https://example.com/image.jpg"}]}  # Include album info in the track response
     }
+    
     mock_audio_features_response = [{
         "danceability": 0.8,
         "energy": 0.7,
@@ -26,7 +28,8 @@ def test_fetch_track_from_spotify_success():
         "time_signature": 4,
         "track_href": "https://api.spotify.com/v1/tracks/test_track_id"
     }]
-
+    
+    # Patching the Spotify API methods
     with patch("spotipy.Spotify.track", return_value=mock_track_response) as mock_track, \
          patch("spotipy.Spotify.audio_features", return_value=mock_audio_features_response) as mock_audio_features:
         
@@ -38,11 +41,11 @@ def test_fetch_track_from_spotify_success():
         assert result["artist_name"] == "Test Artist"
         assert result["danceability"] == 0.8
         assert result["tempo"] == 120
+        assert result["image_url"] == "https://example.com/image.jpg"  # Check if image URL is correct
 
         # Assert that the mocks were called correctly
         mock_track.assert_called_once_with("test_track_id")
         mock_audio_features.assert_called_once_with("test_track_id")
-
 
 def test_fetch_track_from_spotify_not_found():
     # Simulate the Spotify client raising an exception for a non-existent track
@@ -51,10 +54,12 @@ def test_fetch_track_from_spotify_not_found():
 
         with pytest.raises(HTTPException) as excinfo:
             fetch_track_from_spotify("non_existent_track_id")
-        
+
+        # Assert the correct HTTPException is raised
         assert excinfo.value.status_code == 404
         assert "Track not found" in str(excinfo.value.detail)
 
         # Assert that the track request was attempted even though it failed
         mock_track.assert_called_once_with("non_existent_track_id")
-
+        # Ensure audio features were not fetched since the track failed
+        mock_audio_features.assert_not_called()
