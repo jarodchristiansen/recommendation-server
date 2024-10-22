@@ -20,9 +20,6 @@ def fetch_track_from_spotify(track_id: str):
         track = spotify.track(track_id)
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
-
-    # Fetch the track and audio features
-    # track = spotify.track(track_id)
     
     audio_features = spotify.audio_features(track_id)
 

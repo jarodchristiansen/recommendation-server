@@ -7,16 +7,6 @@ import os
 
 router = APIRouter()
 
-
-
-from fastapi import APIRouter, HTTPException
-from app.utils.db import get_mongo_collection
-from app.services.spotify_service import fetch_track_from_spotify
-from app.services.recommendation_service import calculate_cosine_similarity_with_explanation
-import os
-
-router = APIRouter()
-
 @router.get("/recommendations/cosine-similarity/{track_id}")
 async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     secret_token = os.getenv("SECRET_TOKEN")
@@ -56,48 +46,6 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
         "recommendations": recommended_tracks,
         "target_features": {key: target_song[key] for key in feature_columns},
     }
-
-
-# @router.get("/recommendations/cosine-similarity/{track_id}")
-# async def recommend_songs(track_id: str, token: str, top_n: int = 10):
-#     secret_token = os.getenv("SECRET_TOKEN")
-#     if token != secret_token:
-#         raise HTTPException(status_code=401, detail="Invalid token")
-
-#     collection = get_mongo_collection()
-
-#     # Fetch the target song from MongoDB
-#     target_song = collection.find_one({"track_id": track_id})
-    
-#     # Fetch from Spotify if not found
-#     if "image_url" not in target_song:
-#         try:
-#             target_song = fetch_track_from_spotify(track_id)
-#             collection.insert_one(target_song)
-#         except Exception as e:
-#             raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
-
-#     # Ensure necessary features exist
-#     required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'image_url']
-#     if not all(key in target_song and target_song[key] is not None for key in required_features):
-#         raise HTTPException(status_code=400, detail="Target song is missing necessary audio features")
-
-#     # Get all tracks with necessary features
-#     all_tracks = list(collection.find({key: {"$exists": True, "$ne": None} for key in required_features}, {
-#         "_id": 0, "track_id": 1, "track_name": 1, "artist_name": 1, "popularity": 1,  **{key: 1 for key in required_features}
-#     }))
-
-#     # Define feature columns for similarity calculation
-#     feature_columns = ['popularity', 'danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness']
-    
-#     # Calculate recommendations with explanations
-#     recommended_tracks = calculate_cosine_similarity_with_explanation(
-#         target_song, all_tracks, feature_columns, top_n)
-
-#     return {
-#         "recommendations": recommended_tracks,
-#         "target_features": {key: target_song[key] for key in feature_columns},
-#     }
 
 
 # #re-instate after adding ANNOY or FAISS for approximating nearest neighbors
