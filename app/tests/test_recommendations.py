@@ -1,29 +1,3 @@
-# from fastapi.testclient import TestClient
-# import os
-
-# # relies on conftest.py import to manage main.py being outside /app
-# from main import app
-
-# client = TestClient(app)
-
-# def test_recommendations_authentication():
-#     secret_token = os.getenv("SECRET_TOKEN")
-
-#     response = client.get("/recommendations/cosine-similarity/3wzAXBZ6mhuYEzf2IJAbDc", params={"token": "test_token"})
-#     assert response.status_code == 401
-
-#     response = client.get("/recommendations/cosine-similarity/3wzAXBZ6mhuYEzf2IJAbDc", params={"token": secret_token})
-#     assert response.status_code == 200
-#     assert 'recommendations' in response.json()
-
-# def test_recommendations_authentication():
-#     secret_token = os.getenv("SECRET_TOKEN")
-
-#     response = client.get("/recommendations/cosine-similarity/3wzAXBZ6mhuYEzf2IJAbDc", params={"token": secret_token})
-#     assert response.status_code == 200
-#     assert 'target_features' in response.json()    
-
-
 from fastapi.testclient import TestClient
 import os
 import numpy as np
@@ -113,15 +87,6 @@ def test_recommendations_authentication():
     assert response.status_code == 200
     assert 'recommendations' in response.json()
     assert 'target_features' in response.json()
-
-def test_recommendations_missing_track():
-    # Test for a track that is not in the database
-    secret_token = os.getenv("SECRET_TOKEN")
-    non_existent_track_id = "non_existent_track"
-
-    response = client.get(f"/recommendations/cosine-similarity/{non_existent_track_id}", params={"token": secret_token})
-    assert response.status_code == 404
-    assert "Track not found" in response.json()['detail']
 
 def test_recommendations_missing_features():
     # Test when a track is missing features (simulate using a mock)
