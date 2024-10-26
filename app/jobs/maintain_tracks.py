@@ -69,7 +69,7 @@ spotify = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 ))
 
 # Spotify's API rate limits
-MAX_REQUESTS = 1000
+MAX_REQUESTS = 2500
 REQUEST_COUNT = 0  # Counter for how many requests have been made
 MAX_RETRIES = 2  # Max retries in case of rate limiting or errors
 BACKOFF_FACTOR = 2  # Exponential backoff factor for retries
@@ -104,6 +104,7 @@ def update_missing_images():
             break
 
         track_id = track['track_id']
+        time.sleep(3)
         spotify_track = fetch_track_with_backoff(track_id)
 
         if spotify_track:

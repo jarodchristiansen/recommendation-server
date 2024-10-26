@@ -18,16 +18,19 @@ async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     # Fetch the target song from MongoDB
     target_song = collection.find_one({"track_id": track_id})
 
-    # Fetch from Spotify if not found in the DB or missing 'image_url'
-    if target_song is None or "image_url" not in target_song:
+    # Adds above items to required_features
+    required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'image_url', 'popularity', 'acousticness', 'instrumentalness', 'liveness', 'tempo', 'time_signature', 'mode']
+
+    # Fetch from Spotify if not found in the DB or missing any required features
+    if target_song is None or not all(key in target_song for key in required_features):
         try:
             target_song = fetch_track_from_spotify(track_id)
             collection.insert_one(target_song)
         except Exception as e:
             raise HTTPException(status_code=404, detail=f"Track not found: {str(e)}")
+        
 
     # Ensure necessary features exist
-    required_features = ['danceability', 'energy', 'valence', 'loudness', 'key', 'speechiness', 'image_url']
     if not all(key in target_song and target_song[key] is not None for key in required_features):
         raise HTTPException(status_code=400, detail="Target song is missing necessary audio features")
 
