@@ -1,18 +1,17 @@
-# 🎧 Recommendation Engine Exploration using Spotify Tracks
+# 📚 Recommendation Engine — Books (Open Library)
 
+This service powers **book recommendations** using the [Open Library API](https://openlibrary.org/developers/api) and MongoDB. It recommends books similar to a chosen title using cosine similarity on metadata-derived features (e.g. subject count, author count).
 
-Welcome to the **Recommendation Engine** project, an intelligent system designed to suggest tracks to users based on a combination of track features, user preferences, and explainable insights. This project was built with the goal of exploring various machine learning techniques behind recommendation systems and tackling engineering challenges like data processing, scalability, and API limitations.
+**Migration note:** The app was migrated from Spotify (tracks) to Open Library (books). Track-based recommendations remain available only when data already exists in MongoDB; no new Spotify fetching. See `MIGRATION_AND_ARCHITECTURE.md` and `MIGRATION_CHECKPOINT.md`.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/render-examples/fastapi)
 
 ## 🌟 Features
 
-- **Cosine Similarity Recommendations**: Recommends songs based on cosine similarity using audio features like danceability, energy, valence, and more.
-- **Explainable Recommendations**: Provides users with insights into why certain tracks are recommended by showing feature differences and similarity scores.
-- **Weighted Recommendations**: Allows users to customize the importance of different track attributes to get more personalized recommendations.
-- **Data Caching and Scalability**: Uses Redis for caching responses and employs background workers for periodic updates, effectively managing API rate-limits.
-- **Multiple Recommendation Algorithms**: Explores traditional methods like **k-Nearest Neighbors (k-NN)**, **Non-Negative Matrix Factorization (NMF)**, and deep learning methods like **Autoencoders**. Investigated large-scale nearest neighbors using **FAISS** and **ANNOY**.
-- **Data Preprocessing & Integration**: Processed large datasets with **Pandas**, integrated **BeautifulSoup** for scraping, and used **Requests** for API interactions.
+- **Book recommendations**: `GET /recommendations/books/cosine-similarity/{work_id}` — suggests books similar to a given Open Library work using features like subject count, author count, and cover count.
+- **Explainable recommendations**: Each recommendation includes a similarity score and feature differences.
+- **Open Library integration**: Fetches work metadata (and author name) from Open Library when a book is not yet in MongoDB, then stores it for future similarity queries.
+- **Legacy track endpoint**: `GET /recommendations/cosine-similarity/{track_id}` still works if the track exists in MongoDB (no Spotify API calls).
 
 ## 📚 Overview & Purpose
 
@@ -23,9 +22,8 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 ### Prerequisites
 
 - **Python 3.9+**
-- **Spotify Developer Account**: Create an app on the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/) to get your `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
-- **MongoDB Atlas**: Set up a free MongoDB Atlas cluster and get your connection string.
-- **Render Account**: For deploying the service in a production-like environment.
+- **MongoDB Atlas** (or any MongoDB): Connection string for storing book metadata. See `ENV.md` and `.env.example`.
+- **Render Account** (optional): For deploying the service.
 
 ### Local Setup
 
@@ -49,14 +47,13 @@ This project was driven by a curiosity to understand the mechanics behind recomm
    pip install -r requirements.txt
    ```
 
-4. Create a `.env` file in the root directory with your credentials:
+4. Create a `.env` file (see `.env.example` and `ENV.md`):
 
    ```
-   SPOTIFY_CLIENT_ID=your_spotify_client_id
-   SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
    MONGO_URL=your_mongodb_connection_string
    SECRET_TOKEN=your_secret_token
    ```
+   Optional: `OPEN_LIBRARY_USER_AGENT`, `OPEN_LIBRARY_CONTACT_EMAIL` for Open Library rate limits.
 
 5. Run the FastAPI server:
 
@@ -87,40 +84,26 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 
 ## 🧠 How It Works
 
-### 1. Recommendation Logic
+### Book recommendations
 
-- Uses **cosine similarity** to measure the closeness of a target song's features with those in the database, recommending the top tracks.
-- Allows for **weighted adjustments**, letting users prioritize attributes like energy or danceability in recommendations.
-- Explores advanced algorithms like **Non-Negative Matrix Factorization (NMF)**, **k-Nearest Neighbors (k-NN)**, **FAISS**, **ANNOY**, and **Autoencoders** for deeper insights into large-scale recommendations.
-- **Explainable AI**: Each recommendation includes the similarity score and differences in attributes (e.g., danceability, energy) to help users understand why a particular song was chosen.
+1. Client calls `GET /recommendations/books/cosine-similarity/{work_id}?token=...`.
+2. Server looks up the work in MongoDB (`Books.books_with_metadata`). If missing or incomplete, it fetches the work (and author name) from the Open Library API and inserts the document.
+3. Cosine similarity is computed over numeric features: `author_count`, `subject_count`, `cover_count`.
+4. Response returns the top similar books with similarity scores and feature differences.
 
-### 2. Data Fetching & Storage
+### Data & storage
 
-- **Spotify API Integration**: Fetches track metadata and audio features (e.g., tempo, key, loudness) using the Spotify API.
-- **MongoDB**: Stores track data, ensuring quick access to recommendations and reducing dependency on real-time API calls.
-- **Redis**: Caches responses to reduce API calls and improve response times.
-
-
-- **GitHub Actions**: Automates data fetching for missing information, processing 1,000 tracks at a time to stay within rate limits.
-
-
-### 3. Background Jobs & Scalability
-
-- Uses **Render Background Worker** for:
-  - Fetching missing album images and audio features.
-  - Periodically updating track information to ensure data freshness.
-- An **uptime monitor** keeps the service active on the free tier of Render, preventing it from hibernating due to inactivity.
+- **MongoDB**: `Books.books_with_metadata` stores book documents (work_id, title, author_name, subject_count, etc.). Legacy `Tracks.tracks_with_features` is still used only for the track endpoint when data exists.
+- **Open Library API**: Used to fetch work and author metadata on demand. Identify requests with `User-Agent` (and optional contact email) for better rate limits.
 
 ## 🔧 Technologies & Tools
 
-- **Python & FastAPI**: For creating a fast, reliable backend.
-- **Spotipy**: A lightweight Python library for accessing Spotify's Web API.
-- **MongoDB**: Stores track data and user preferences.
-- **Redis**: Improves performance with caching.
-- **Pandas & BeautifulSoup**: For data preprocessing and web scraping.
-- **SciKit-Learn**: For implementing machine learning algorithms.
-- **Pytest**: For unit testing and ensuring code reliability.
-- **Render**: A modern cloud platform for deploying the service.
+- **Python & FastAPI**: Backend API.
+- **MongoDB**: Stores book (and legacy track) metadata.
+- **Open Library API**: Source for work and author metadata.
+- **SciKit-Learn**: Cosine similarity for recommendations.
+- **Pytest**: Unit tests.
+- **Render**: Optional deployment.
 
 ## 📈 Future Improvements
 

@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "Recommendation Server",
+    "description": "FastAPI recommendation-server: book recommendations (Zilliz) and legacy track recommendations (MongoDB).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "token",
+      "value": "your-secret-token",
+      "type": "string"
+    },
+    {
+      "key": "track_id",
+      "value": "example-track-id",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Root",
+      "item": [
+        {
+          "name": "GET Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            },
+            "description": "Simple health/root endpoint. No auth required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Book Recommendations (Zilliz)",
+      "item": [
+        {
+          "name": "POST Recommend (full seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"work_key\": \"/works/OL17930368W\",\n  \"title\": \"Atomic Habits\",\n  \"author_name\": \"James Clear\",\n  \"subjects\": [\"Self-help\", \"Productivity\", \"Habits\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recommend",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommend"]
+            },
+            "description": "Primary book recommendation endpoint. Sends full seed (work_key, title, author_name, subjects). Returns similar books from Zilliz; uses Tier 2/3 if book not in Zilliz. Auth: Bearer token or query token if SECRET_TOKEN is set."
+          }
+        },
+        {
+          "name": "POST Recommend (minimal – work_key only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"work_key\": \"/works/OL45804W\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recommend",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommend"]
+            },
+            "description": "Minimal body. Only works when this work_key exists in Zilliz (Tier 1). Otherwise Tier 2/3 get no metadata."
+          }
+        },
+        {
+          "name": "POST Recommend (another book)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"work_key\": \"/works/OL18020194W\",\n  \"title\": \"The Power of Habit\",\n  \"author_name\": \"Charles Duhigg\",\n  \"subjects\": [\"Habit\", \"Psychology\", \"Self-help\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/recommend",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommend"]
+            },
+            "description": "Sample: The Power of Habit. Good for testing Tier 2 if not in Zilliz."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Legacy – Track Recommendations (MongoDB)",
+      "item": [
+        {
+          "name": "GET Cosine Similarity (track)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/recommendations/cosine-similarity/{{track_id}}?token={{token}}&top_n=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["recommendations", "cosine-similarity", "{{track_id}}"],
+              "query": [
+                {
+                  "key": "token",
+                  "value": "{{token}}"
+                },
+                {
+                  "key": "top_n",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Legacy: track recommendations from MongoDB using cosine similarity. Requires track_id to exist in DB with full features. Auth via query param token."
+          }
+        }
+      ]
+    }
+  ]
+}
