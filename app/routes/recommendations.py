@@ -1,5 +1,6 @@
 # app/routes/recommendations.py
 # Zilliz: POST /recommend is the primary book recommendation endpoint. Legacy GET routes retained for tracks and deprecated book cosine-similarity.
+import asyncio
 import os
 import time
 
@@ -103,12 +104,32 @@ def _validate_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+async def _get_embedding_model(req: Request):
+    """Lazy-load embedding model on first use to keep startup memory low (e.g. Render 512MB)."""
+    model = getattr(req.app.state, "embedding_model", None)
+    if model is not None:
+        return model
+    lock = getattr(req.app.state, "_embedding_model_lock", None)
+    name = getattr(req.app.state, "embedding_model_name", None)
+    if not lock or not name:
+        return None
+    from sentence_transformers import SentenceTransformer
+
+    async with lock:
+        if req.app.state.embedding_model is None:
+            # Load in thread so we don't block the event loop for several seconds.
+            req.app.state.embedding_model = await asyncio.to_thread(
+                SentenceTransformer, name
+            )
+    return req.app.state.embedding_model
+
+
 @router.post("/recommend")
 async def recommend_zilliz(request: RecommendRequest, background_tasks: BackgroundTasks, req: Request):
     """Book recommendations via Zilliz vector search. Tier 1: stored embedding; Tier 2: MiniLM + async write; Tier 3: subject filter."""
     _validate_token(req)
     client = getattr(req.app.state, "zilliz_client", None)
-    model = getattr(req.app.state, "embedding_model", None)
+    model = await _get_embedding_model(req)
     if not client or not model:
         raise HTTPException(
             status_code=503,

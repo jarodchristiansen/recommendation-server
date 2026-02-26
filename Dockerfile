@@ -7,7 +7,11 @@ WORKDIR /app
 # Copy the requirements file into the container
 COPY requirements.txt .
 
-# Install dependencies
+# Install CPU-only PyTorch first so sentence-transformers doesn't pull in CUDA (~2GB).
+# Required for low-memory / CPU-only environments (e.g. Render, Cloud Run).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the current directory contents into the container
