@@ -1,12 +1,12 @@
 # app/routes/recommendations.py
 # Zilliz: POST /recommend is the primary book recommendation endpoint. Legacy GET routes retained for tracks and deprecated book cosine-similarity.
-import asyncio
 import os
 import time
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel
 
+from app.services.embedding_client import embed_text
 from app.utils.db import get_mongo_collection
 from app.services.recommendation_service import calculate_cosine_similarity_with_explanation
 
@@ -104,39 +104,19 @@ def _validate_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-async def _get_embedding_model(req: Request):
-    """Lazy-load embedding model on first use to keep startup memory low (e.g. Render 512MB)."""
-    model = getattr(req.app.state, "embedding_model", None)
-    if model is not None:
-        return model
-    lock = getattr(req.app.state, "_embedding_model_lock", None)
-    name = getattr(req.app.state, "embedding_model_name", None)
-    if not lock or not name:
-        return None
-    from sentence_transformers import SentenceTransformer
-
-    async with lock:
-        if req.app.state.embedding_model is None:
-            # Load in thread so we don't block the event loop for several seconds.
-            req.app.state.embedding_model = await asyncio.to_thread(
-                SentenceTransformer, name
-            )
-    return req.app.state.embedding_model
-
-
 @router.post("/recommend")
 async def recommend_zilliz(request: RecommendRequest, background_tasks: BackgroundTasks, req: Request):
-    """Book recommendations via Zilliz vector search. Tier 1: stored embedding; Tier 2: MiniLM + async write; Tier 3: subject filter."""
+    """Book recommendations via Zilliz vector search. Tier 1: stored embedding; Tier 2: embedding API + async write; Tier 3: subject filter."""
     _validate_token(req)
     client = getattr(req.app.state, "zilliz_client", None)
-    model = await _get_embedding_model(req)
-    if not client or not model:
+    if not client:
         raise HTTPException(
             status_code=503,
             detail="Recommendation service not configured (ZILLIZ_ENDPOINT / ZILLIZ_API_KEY)",
         )
 
     fallback_used = False
+    embedding_unavailable = False
     # Escape work_key for filter (avoid injection)
     work_key_safe = request.work_key.replace("\\", "\\\\").replace('"', '\\"')
 
@@ -151,20 +131,24 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
     if existing:
         query_vector = existing[0]["embedding"]
     else:
-        # Tier 2: generate embedding from Open Library metadata
+        # Tier 2: generate embedding via API from Open Library metadata; fall back to Tier 3 if API fails
         query_text = _build_query_text(request.title, request.author_name, request.subjects)
         if query_text:
-            query_vector = model.encode([query_text], normalize_embeddings=True)[0].tolist()
-            background_tasks.add_task(
-                _store_new_book,
-                client,
-                request.work_key,
-                request.title,
-                request.author_name,
-                request.subjects,
-                query_vector,
-            )
-            fallback_used = True
+            query_vector = await embed_text(query_text)
+            if query_vector is not None:
+                background_tasks.add_task(
+                    _store_new_book,
+                    client,
+                    request.work_key,
+                    request.title,
+                    request.author_name,
+                    request.subjects,
+                    query_vector,
+                )
+                fallback_used = True
+            else:
+                query_vector = None
+                embedding_unavailable = True
         else:
             query_vector = None
 
@@ -201,6 +185,8 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
             recommendations = []
 
     out = {"recommendations": recommendations, "fallback_used": fallback_used}
+    if embedding_unavailable:
+        out["embedding_unavailable"] = True
     # Hint when work_key-only request had no metadata: book not in Zilliz and no title/author/subjects to build embedding
     if not recommendations and not _build_query_text(request.title, request.author_name, request.subjects):
         out["hint"] = "Book not in catalog or no metadata provided. Send title, author_name, and subjects for similar books."
