@@ -95,6 +95,7 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 
 - **MongoDB**: `Books.books_with_metadata` stores book documents (work_id, title, author_name, subject_count, etc.). Legacy `Tracks.tracks_with_features` is still used only for the track endpoint when data exists.
 - **Open Library API**: Used to fetch work and author metadata on demand. Identify requests with `User-Agent` (and optional contact email) for better rate limits.
+- **Embeddings & Zilliz**: Book recommendations (e.g. `POST /recommend`) use Zilliz for vector search. Embeddings are produced by an external API (Hugging Face Inference API by default; see `EMBEDDING_API_TOKEN` in `.env.example`). Changing the embedding model or API breaks compatibility with vectors already stored in Zilliz. When the embedding API is unavailable, the server falls back to Tier 3 (subject filter) and sets `embedding_unavailable: true` in the response.
 
 ## 🔧 Technologies & Tools
 
