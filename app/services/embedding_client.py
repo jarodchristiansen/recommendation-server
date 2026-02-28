@@ -12,8 +12,9 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# Use router.huggingface.co; api-inference.huggingface.co returned 410 (no longer supported).
 DEFAULT_EMBEDDING_URL = (
-    "https://api-inference.huggingface.co/pipeline/feature-extraction/"
+    "https://router.huggingface.co/pipeline/feature-extraction/"
     "sentence-transformers/all-MiniLM-L6-v2"
 )
 TIMEOUT_S = 15.0
