@@ -164,15 +164,30 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
         recommendations = []
         for h in hits:
             entity = h.get("entity") if isinstance(h.get("entity"), dict) else h
-            if entity.get("work_key") != request.work_key:
+            if not isinstance(entity, dict):
+                continue
+            wk = entity.get("work_key")
+            if wk is not None and wk != request.work_key:
                 recommendations.append(entity)
             if len(recommendations) >= 10:
                 break
+        if not recommendations and hits:
+            # All hits were the seed (shouldn't happen in Tier 2) or work_key missing
+            pass
     else:
-        # Tier 3: subject filter — last resort
+        # Tier 3: subject filter — last resort when embedding failed or unavailable
         fallback_used = True
-        subject = (request.subjects or [None])[0]
-        if subject:
+        # Prefer generic subjects; skip API-specific "series:..." so we match bulk Zilliz data
+        subject_candidates = [
+            s for s in (request.subjects or [])
+            if s and not s.strip().lower().startswith("series:")
+        ]
+        if not subject_candidates:
+            subject_candidates = [s for s in (request.subjects or []) if s]
+        recommendations = []
+        for subject in subject_candidates[:5]:
+            if len(recommendations) >= 10:
+                break
             subject_safe = subject.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")
             recs = client.query(
                 collection_name=COLLECTION_NAME,
@@ -180,9 +195,32 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
                 output_fields=OUTPUT_FIELDS,
                 limit=10,
             )
-            recommendations = recs or []
-        else:
-            recommendations = []
+            if recs:
+                seen_keys = {request.work_key}
+                for r in recs:
+                    wk = (r.get("work_key") or "").strip()
+                    if wk and wk != request.work_key and wk not in seen_keys:
+                        seen_keys.add(wk)
+                        recommendations.append(r)
+                        if len(recommendations) >= 10:
+                            break
+        # If we still have nothing, try first subject even if series: (for small catalogs)
+        if not recommendations and request.subjects:
+            subject = request.subjects[0]
+            if subject:
+                subject_safe = subject.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")
+                recs = client.query(
+                    collection_name=COLLECTION_NAME,
+                    filter=f'subjects like "%{subject_safe}%"',
+                    output_fields=OUTPUT_FIELDS,
+                    limit=10,
+                )
+                if recs:
+                    for r in recs:
+                        if (r.get("work_key") or "").strip() != request.work_key:
+                            recommendations.append(r)
+                            if len(recommendations) >= 10:
+                                break
 
     out = {"recommendations": recommendations, "fallback_used": fallback_used}
     if embedding_unavailable:
@@ -190,12 +228,20 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
     # Hint when work_key-only request had no metadata: book not in Zilliz and no title/author/subjects to build embedding
     if not recommendations and not _build_query_text(request.title, request.author_name, request.subjects):
         out["hint"] = "Book not in catalog or no metadata provided. Send title, author_name, and subjects for similar books."
+    elif not recommendations:
+        # Help debug: explain why we got no results (Tier 2 vs Tier 3)
+        if embedding_unavailable:
+            out["hint"] = "Embedding API unavailable; subject filter found no matching books. Check EMBEDDING_API_TOKEN and try subjects that appear in the catalog (e.g. 'Magic', 'Fantasy')."
+        elif query_vector is not None:
+            out["hint"] = "Vector search returned no other books. The catalog may be empty or the seed has no close matches yet."
+        else:
+            out["hint"] = "No similar books found. The catalog may have few books matching this title/subjects, or the subject filter did not match (try more general subjects)."
     return out
 
 
 # --- Legacy route: track recommendations (MongoDB Tracks only). Book recommendations use POST /recommend (Zilliz). ---
 
-@router.get("/recommendations/cosine-similarity/{track_id}")
+@router.api_route("/recommendations/cosine-similarity/{track_id}", methods=["GET", "POST"])
 async def recommend_songs(track_id: str, token: str, top_n: int = 10):
     secret_token = os.getenv("SECRET_TOKEN")
     if token != secret_token:
