@@ -1,0 +1,43 @@
+# Keep Zilliz cluster warm by calling POST /recommend once per day.
+# Prevents cluster timeout after inactivity so the frontend stays working.
+# Free on GitHub: scheduled workflows run on public repos; private repos get 2000 min/month.
+
+name: Keep Zilliz warm
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Run daily at 12:00 UTC (adjust as needed)
+    - cron: "0 12 * * *"
+  workflow_dispatch: # Allow manual run from Actions tab
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Call recommendation API (keep Zilliz warm)
+        env:
+          # Optional: override in repo secrets to hit a different server
+          SERVER_URL: ${{ secrets.RECOMMENDATION_SERVER_URL || 'https://recommendation-server-o85r.onrender.com' }}
+          TOKEN: ${{ secrets.SECRET_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::SECRET_TOKEN not set. Add it in repo Settings → Secrets and variables → Actions."
+            exit 0
+          fi
+          res=$(curl -sS -w "\n%{http_code}" -X POST "${SERVER_URL%/}/recommend" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"work_key":"/works/OL17930368W","title":"Atomic Habits","author_name":"James Clear","subjects":["Self-help","Productivity","Habits"]}')
+          code=$(echo "$res" | tail -n1)
+          body=$(echo "$res" | sed '$d')
+          if [ "$code" = "200" ]; then
+            echo "Zilliz warm request succeeded (200)."
+          else
+            echo "Response ($code): $body"
+            echo "::warning::Recommendation server returned $code. Check SERVER_URL and SECRET_TOKEN."
+          fi

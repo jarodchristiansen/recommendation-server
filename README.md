@@ -116,10 +116,18 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 
 ## 🌐 Deployed Service
 
-- **API Base URL**: [recommendation-server-o85r.onrender.com](recommendation-server-o85r.onrender.com)
-
-
+- **API Base URL**: [recommendation-server-o85r.onrender.com](https://recommendation-server-o85r.onrender.com)
 - **Live Demo**: [View a live demo of the Recommendation Engine](https://spotrec.vercel.app)
+
+### Keeping Zilliz warm (scheduled ping)
+
+A GitHub Action runs **once per day** to call `POST /recommend` on production so the Zilliz cluster does not time out after inactivity.
+
+- **Workflow**: [`.github/workflows/keep-zilliz-warm.yml`](.github/workflows/keep-zilliz-warm.yml) — runs on schedule and via **workflow_dispatch**.
+- **Required secret**: In the repo go to **Settings → Secrets and variables → Actions** and add:
+  - `SECRET_TOKEN`: same value as your server’s `SECRET_TOKEN` (used for `Authorization: Bearer`).
+- **Optional secret**: `RECOMMENDATION_SERVER_URL` — full base URL (e.g. `https://recommendation-server-o85r.onrender.com`). If unset, the workflow uses the default production URL above.
+- **Cost**: Free on public repos; on private repos, scheduled runs use GitHub’s included minutes.
 
 ## 📝 License
 
