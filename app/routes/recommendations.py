@@ -1,5 +1,7 @@
 # app/routes/recommendations.py
-# Zilliz: POST /recommend is the primary book recommendation endpoint. Legacy GET routes retained for tracks and deprecated book cosine-similarity.
+# Zilliz: POST /recommend is the primary book recommendation endpoint. Legacy GET route retained for tracks.
+from __future__ import annotations
+
 import os
 import time
 
@@ -7,7 +9,14 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel
 
 from app.services.embedding_client import embed_text
+from app.services.explanation_service import build_deterministic_explanation
 from app.utils.db import get_mongo_collection
+from app.utils.milvus_search_hits import (
+    same_open_library_work,
+    sanitize_numpy_scalars,
+    search_hit_distance,
+    search_hit_entity_dict,
+)
 from app.services.recommendation_service import calculate_cosine_similarity_with_explanation
 
 router = APIRouter()
@@ -37,6 +46,11 @@ class RecommendRequest(BaseModel):
     title: str = ""
     author_name: str = ""
     subjects: list[str] = []
+
+
+def _sanitize_record(record: dict) -> dict:
+    """Convert numpy scalar types to native Python for JSON serialization."""
+    return sanitize_numpy_scalars(record)
 
 
 def _build_query_text(title: str, author_name: str, subjects: list) -> str:
@@ -163,12 +177,22 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
         hits = results[0] if results else []
         recommendations = []
         for h in hits:
-            entity = h.get("entity") if isinstance(h.get("entity"), dict) else h
-            if not isinstance(entity, dict):
+            dist = search_hit_distance(h)
+            entity = search_hit_entity_dict(h)
+            if not entity:
                 continue
             wk = entity.get("work_key")
-            if wk is not None and wk != request.work_key:
-                recommendations.append(entity)
+            if wk is None:
+                continue
+            if same_open_library_work(wk, request.work_key):
+                continue
+            entity["explanation"] = build_deterministic_explanation(
+                seed_subjects=request.subjects,
+                seed_author=request.author_name,
+                rec=entity,
+                cosine_distance=dist,
+            )
+            recommendations.append(entity)
             if len(recommendations) >= 10:
                 break
         if not recommendations and hits:
@@ -201,6 +225,12 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
                     wk = (r.get("work_key") or "").strip()
                     if wk and wk != request.work_key and wk not in seen_keys:
                         seen_keys.add(wk)
+                        r = _sanitize_record(r)
+                        r["explanation"] = build_deterministic_explanation(
+                            seed_subjects=request.subjects,
+                            seed_author=request.author_name,
+                            rec=r,
+                        )
                         recommendations.append(r)
                         if len(recommendations) >= 10:
                             break
@@ -218,6 +248,12 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
                 if recs:
                     for r in recs:
                         if (r.get("work_key") or "").strip() != request.work_key:
+                            r = _sanitize_record(r)
+                            r["explanation"] = build_deterministic_explanation(
+                                seed_subjects=request.subjects,
+                                seed_author=request.author_name,
+                                rec=r,
+                            )
                             recommendations.append(r)
                             if len(recommendations) >= 10:
                                 break
@@ -237,6 +273,92 @@ async def recommend_zilliz(request: RecommendRequest, background_tasks: Backgrou
         else:
             out["hint"] = "No similar books found. The catalog may have few books matching this title/subjects, or the subject filter did not match (try more general subjects)."
     return out
+
+
+# --- Feature 2: Mood / vibe-based recommendations ---
+
+MOOD_SUBJECT_MAP: dict[str, list[str]] = {
+    "cozy":          ["domestic fiction", "village life", "british mysteries", "comfort"],
+    "epic":          ["epic fantasy", "space opera", "mythology", "war"],
+    "dark":          ["gothic", "psychological thriller", "horror", "noir"],
+    "hopeful":       ["literary fiction", "coming-of-age", "inspirational"],
+    "fast-paced":    ["thriller", "crime fiction", "action", "espionage"],
+    "intellectual":  ["philosophy", "science", "history", "essays"],
+    "heartbreaking": ["literary fiction", "loss", "grief", "tragedy"],
+    "funny":         ["humor", "satire", "comedic fiction"],
+    "romantic":      ["romance", "historical romance", "contemporary romance"],
+    "mind-bending":  ["science fiction", "speculative fiction", "surrealism", "magical realism"],
+}
+
+
+class MoodRequest(BaseModel):
+    mood: str
+    limit: int = 10
+
+
+def _get_zilliz_client(req: Request):
+    client = getattr(req.app.state, "zilliz_client", None)
+    if not client:
+        raise HTTPException(
+            status_code=503,
+            detail="Recommendation service not configured (ZILLIZ_ENDPOINT / ZILLIZ_API_KEY)",
+        )
+    return client
+
+
+@router.post("/recommend/mood")
+async def recommend_by_mood(request: MoodRequest, req: Request):
+    """Return books matching a reading mood/vibe via subject filter on Zilliz."""
+    _validate_token(req)
+    subjects = MOOD_SUBJECT_MAP.get(request.mood.lower())
+    if not subjects:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown mood '{request.mood}'. Valid moods: {sorted(MOOD_SUBJECT_MAP.keys())}",
+        )
+    client = _get_zilliz_client(req)
+
+    results: list[dict] = []
+    seen: set[str] = set()
+    for subject in subjects[:3]:
+        subject_safe = subject.replace("\\", "\\\\").replace('"', '\\"').replace("%", "\\%")
+        hits = client.query(
+            collection_name=COLLECTION_NAME,
+            filter=f'subjects like "%{subject_safe}%"',
+            output_fields=OUTPUT_FIELDS,
+            limit=20,
+        )
+        for h in hits or []:
+            wk = (h.get("work_key") or "").strip()
+            if wk and wk not in seen:
+                seen.add(wk)
+                results.append(_sanitize_record(h))
+        if len(results) >= request.limit:
+            break
+
+    # Sort by popularity — popular-within-vibe wins
+    results.sort(key=lambda x: x.get("total_shelf_count") or 0, reverse=True)
+    top = results[: request.limit]
+
+    # Inject mood-aware explanation into each result
+    for r in top:
+        shelf = r.get("total_shelf_count") or 0
+        avg = r.get("avg_rating") or 0.0
+        rec_subjects_raw = (r.get("subjects") or "").lower()
+        matched_tag = next(
+            (s for s in subjects[:3] if s.lower() in rec_subjects_raw),
+            None,
+        )
+        if matched_tag:
+            r["explanation"] = f"Matched the \"{request.mood}\" mood via the subject \"{matched_tag}\"."
+        elif shelf > 10_000:
+            r["explanation"] = f"A widely loved title that fits the {request.mood} vibe ({shelf:,} readers shelved it)."
+        elif r.get("has_rating") and avg >= 4.0:
+            r["explanation"] = f"Highly rated ({avg:.1f} avg) and a strong fit for the {request.mood} mood."
+        else:
+            r["explanation"] = f"Recommended for its {request.mood} reading vibe."
+
+    return {"mood": request.mood, "recommendations": top}
 
 
 # --- Legacy route: track recommendations (MongoDB Tracks only). Book recommendations use POST /recommend (Zilliz). ---

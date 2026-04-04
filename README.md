@@ -53,6 +53,7 @@ This project was driven by a curiosity to understand the mechanics behind recomm
    MONGO_URL=your_mongodb_connection_string
    SECRET_TOKEN=your_secret_token
    ```
+
    Optional: `OPEN_LIBRARY_USER_AGENT`, `OPEN_LIBRARY_CONTACT_EMAIL` for Open Library rate limits.
 
 5. Run the FastAPI server:
@@ -107,7 +108,6 @@ This project was driven by a curiosity to understand the mechanics behind recomm
 - **Render**: Optional deployment.
 
 ## 📈 Future Improvements
-
 
 - **NLP Integration**: Add sentiment analysis of lyrics to enhance the recommendations further, using libraries like **NLTK** or **spaCy**.
 
